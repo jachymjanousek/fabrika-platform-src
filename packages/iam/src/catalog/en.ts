@@ -126,7 +126,7 @@ export const en: Catalog = {
 				`This invitation creates a new account for ${address}, and this browser is signed in with another account. Sign out first, or open the invitation link in another browser profile.`,
 			signOut: 'Sign out',
 			signInFirstTitle: 'Sign in first',
-			signInFirstText: 'Sign in with the invited address, then open the invitation link again.',
+			signInFirstText: 'Sign in with the invited address. You come back here, and the invitation is accepted.',
 			signIn: 'Sign in',
 			unavailableTitle: 'Invitation unavailable',
 			accountCannotAccept: 'This account cannot accept invitations.',

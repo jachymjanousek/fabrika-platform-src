@@ -98,6 +98,32 @@ describe('/auth/invitations/accept', () => {
 		expect(await response.text()).toContain('/auth/login?redirect=')
 	})
 
+	test("without a session, an application's landing is not the sign-in: IAM's own sign-in comes back and resumes", async () => {
+		const i = await invited()
+		// The application has a registered origin; before, "Sign in" led there, its proxy refused the browser without the
+		// role, and the invitation stayed open.
+		await i.f.repositories.handoff.setReturnOrigins(APP, ['https://app.example.test'])
+		const response = await send(i, accept(i.token))
+		expect(response.status).toBe(401)
+		const html = await response.text()
+		expect(html).toContain(`${ORIGIN}/auth/login?redirect=`)
+		expect(html).not.toContain('href="https://app.example.test')
+		// The token rides in the page for the script to keep in sessionStorage, never in the sign-in URL.
+		expect(html).toContain(`id="resume-invitation" type="hidden" value="${i.token}"`)
+		expect(html).not.toContain(`redirect=${encodeURIComponent(i.token)}`)
+		expect(html.split('/auth/login?redirect=')[1]?.split('"')[0]).not.toContain(i.token)
+		expect(html).toContain("sessionStorage.setItem('fabrika.invitation'")
+		expect(await i.f.repositories.membership.listRoleGrantsAt(APP, (await i.f.person('invitee')).id, i.scope)).toEqual([])
+	})
+
+	test('the invitation page resubmits a kept token once, and a fresh link replaces it', async () => {
+		const i = await invited()
+		const html = await (await send(i, new Request(`${ORIGIN}/auth/invitations/accept`))).text()
+		expect(html).toContain('id="invitation-form"')
+		expect(html).toContain("sessionStorage.getItem('fabrika.invitation')")
+		expect(html).toContain("sessionStorage.removeItem('fabrika.invitation');actionToken.value=kept;invitationForm.submit()")
+	})
+
 	test('a cross-site post and a malformed token are refused', async () => {
 		const i = await invited()
 		const invitee = await signedIn(i, 'invitee')

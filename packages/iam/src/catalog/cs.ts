@@ -126,7 +126,7 @@ export const cs: Catalog = {
 				`Tato pozvánka zakládá nový účet pro adresu ${address} a tento prohlížeč je přihlášen jiným účtem. Nejprve se odhlaste, nebo otevřete odkaz z pozvánky v jiném profilu prohlížeče.`,
 			signOut: 'Odhlásit se',
 			signInFirstTitle: 'Nejprve se přihlaste',
-			signInFirstText: 'Přihlaste se pozvanou adresou a potom znovu otevřete odkaz z pozvánky.',
+			signInFirstText: 'Přihlaste se pozvanou adresou. Vrátíte se sem a pozvánka se přijme.',
 			signIn: 'Přihlásit se',
 			unavailableTitle: 'Pozvánka není k dispozici',
 			accountCannotAccept: 'Tento účet nemůže přijímat pozvánky.',

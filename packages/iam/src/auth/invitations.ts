@@ -76,14 +76,16 @@ export async function handleInvitation(request: Request, services: Services, ctx
 	}
 	const session = await currentSession(request, services)
 	if (session === null) {
-		// The application's own address signs the browser in through its handoff, in its language; without one, IAM's.
-		const signIn = landingUrl(linked) ?? ownSignIn(services, linked.app)
+		// IAM's own sign-in, back to this page, which then accepts on its own: the page keeps the token in the tab's
+		// sessionStorage (never in a URL, so never in a log). The application's address would sign the browser in
+		// without the role, and its proxy would refuse it before the invitation was ever accepted.
 		return invitationOutcomePage({
 			presentation: linked,
 			title: (t) => t.signInFirstTitle,
 			text: (t) => t.signInFirstText,
 			status: 401,
-			signIn,
+			signIn: ownSignIn(services, linked.app),
+			resumeToken: token.data,
 		})
 	}
 	const principal = await services.repositories.principals.getPrincipalById(session.principal_id)
@@ -187,7 +189,7 @@ function creationRefused(
 	}
 }
 
-/** IAM's own sign-in, back to this page: the browser opens the invitation link again there. */
+/** IAM's own sign-in, back to the invitation page, which resumes the acceptance from the tab's sessionStorage. */
 function ownSignIn(services: Services, app: string | null): string {
 	const accept = new URL(INVITATION_ACCEPT_PATH, services.config.issuer)
 	if (app !== null) accept.searchParams.set('app', app)

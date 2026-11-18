@@ -259,7 +259,7 @@ export function invitationPage(presentation: AppPresentation): Response {
 		brand: presentation.brand,
 		title: text.invitation.title,
 		content: `<h1>${escapeHtml(text.invitation.title)}</h1><p>${escapeHtml(text.invitation.text)}</p>
-		<form method="post" action="${escapeHtml(`/auth/invitations/accept${appQuery(presentation)}`)}">
+		<form id="invitation-form" method="post" action="${escapeHtml(`/auth/invitations/accept${appQuery(presentation)}`)}">
 			<input id="action-token" type="hidden" name="token" value="">
 			<button type="submit">${escapeHtml(text.invitation.submit)}</button>
 		</form>`,
@@ -314,17 +314,23 @@ export function invitationOutcomePage(
 		readonly signIn?: string
 		/** IAM's sign-out page, which asks before it signs out. */
 		readonly signOut?: string
+		/**
+		 * The invitation's token, for a "sign in first" answer: the page script keeps it in the tab's sessionStorage, and
+		 * the invitation page, reached again after IAM's sign-in without a fragment, submits it once.
+		 */
+		readonly resumeToken?: string
 	},
 ): Response {
 	const text = catalogFor(input.presentation.locale).pages.invitation
 	const title = input.title(text)
 	const signIn = input.signIn === undefined ? '' : `<p><a class="button" href="${escapeHtml(input.signIn)}">${escapeHtml(text.signIn)}</a></p>`
 	const signOut = input.signOut === undefined ? '' : `<p><a class="button" href="${escapeHtml(input.signOut)}">${escapeHtml(text.signOut)}</a></p>`
+	const resume = input.resumeToken === undefined ? '' : `<input id="resume-invitation" type="hidden" value="${escapeHtml(input.resumeToken)}">`
 	return htmlPage({
 		locale: input.presentation.locale,
 		brand: input.presentation.brand,
 		title,
-		content: `<h1>${escapeHtml(title)}</h1><p>${escapeHtml(input.text(text))}</p>${signIn}${signOut}`,
+		content: `<h1>${escapeHtml(title)}</h1><p>${escapeHtml(input.text(text))}</p>${signIn}${signOut}${resume}`,
 		status: input.status,
 	})
 }
@@ -368,7 +374,7 @@ export function htmlPage(page: {
 	<style nonce="${nonce}">${PAGE_STYLE}</style></head><body>${
 			pageBody(page.content, { runsOn: escapeHtml(catalogFor(page.locale).pages.runsOn) }, page.brand)
 		}
-	<script nonce="${nonce}">var actionToken=document.getElementById('action-token');if(actionToken&&!actionToken.value){var fragment=new URLSearchParams(location.hash.slice(1));var token=fragment.get('token');if(token){actionToken.value=token;history.replaceState(null,'',location.pathname+location.search);}}document.querySelectorAll('[data-show]').forEach(function(button){button.addEventListener('click',function(){var input=document.getElementById(button.dataset.show);if(!input)return;var show=input.type==='password';input.type=show?'text':'password';button.textContent=show?button.dataset.labelHide:button.dataset.labelShow;} );});</script></body></html>`
+	<script nonce="${nonce}">var actionToken=document.getElementById('action-token');if(actionToken&&!actionToken.value){var fragment=new URLSearchParams(location.hash.slice(1));var token=fragment.get('token');if(token){actionToken.value=token;history.replaceState(null,'',location.pathname+location.search);}}try{var resume=document.getElementById('resume-invitation');if(resume&&resume.value)sessionStorage.setItem('fabrika.invitation',resume.value);var invitationForm=document.getElementById('invitation-form');if(invitationForm&&actionToken){if(actionToken.value){sessionStorage.removeItem('fabrika.invitation');}else{var kept=sessionStorage.getItem('fabrika.invitation');if(kept){sessionStorage.removeItem('fabrika.invitation');actionToken.value=kept;invitationForm.submit();}}}}catch(e){}document.querySelectorAll('[data-show]').forEach(function(button){button.addEventListener('click',function(){var input=document.getElementById(button.dataset.show);if(!input)return;var show=input.type==='password';input.type=show?'text':'password';button.textContent=show?button.dataset.labelHide:button.dataset.labelShow;} );});</script></body></html>`
 	return new Response(html, {
 		status: page.status ?? 200,
 		headers: {

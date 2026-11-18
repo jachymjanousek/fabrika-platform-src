@@ -394,7 +394,9 @@ describe('an invitation of a cs application', () => {
 		expect(signInFirst.status).toBe(401)
 		const signInHtml = await signInFirst.text()
 		expect(signInHtml).toContain('Nejprve se přihlaste')
-		expect(signInHtml).toContain('href="https://notes.example.com/"')
+		// IAM's own sign-in, back to the invitation, which resumes; the application's address would land without the role.
+		expect(signInHtml).toContain(`href="${ORIGIN}/auth/login?redirect=`)
+		expect(signInHtml).not.toContain('href="https://notes.example.com/"')
 
 		const accepted = await i.send(accept(url, token, { Cookie: i.cookie }))
 		expect(accepted.status).toBe(302)
