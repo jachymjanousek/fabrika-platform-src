@@ -179,6 +179,9 @@ export async function handleLogout(request: Request, services: Services, request
 	if (!await endLogin(request, services, requestId)) {
 		return authFailurePage(await installationPresentation(services), { kind: 'logout_unavailable' }, 503)
 	}
+	// The provider's logout wins over any return address: without it the provider signs the person in again at once.
+	const providerLogout = services.oidc?.logoutUrl() ?? null
+	if (providerLogout !== null) return signedOutRedirect(providerLogout)
 	const url = new URL(request.url)
 	return signedOutRedirect(safeRedirect(url.searchParams.get('redirect'), services.config) ?? await installationLanding(services))
 }

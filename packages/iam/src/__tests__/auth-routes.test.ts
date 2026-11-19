@@ -522,6 +522,36 @@ describe('/auth/logout', () => {
 		expect(await h.repositories.sessions.getActiveSessionByHash(await hashToken(sessionToken))).toBeNull()
 	})
 
+	test('behind Cloudflare Access, the logout ends at the Access logout, which ends its session too', async () => {
+		const { h, sessionToken } = await liveLogin()
+		const access = new OidcClient(
+			{ issuer: 'https://team.cloudflareaccess.com/cdn-cgi/access/sso/oidc/abc', clientId: 'x', clientSecret: 'y', redirectUri: `${ISSUER}/auth/callback`, scopes: '', requireVerifiedEmail: true },
+			{ metadata: IDP_METADATA },
+		)
+		const res = await handleAuth(
+			logout(sessionToken, { method: 'POST', headers: { Origin: ISSUER, 'Sec-Fetch-Site': 'same-origin' } }),
+			h.makeServices({ issuer: ISSUER, oidc: access }),
+			AUTH_ENV,
+			ctx(),
+		)
+		expect(res.status).toBe(302)
+		expect(res.headers.get('location')).toBe('https://team.cloudflareaccess.com/cdn-cgi/access/logout')
+		expect(res.headers.getSetCookie().some((c) => c.startsWith(`${SESSION_COOKIE}=`) && c.includes('Max-Age=0'))).toBe(true)
+		expect(await h.repositories.sessions.getActiveSessionByHash(await hashToken(sessionToken))).toBeNull()
+	})
+
+	test('another provider keeps the return address', async () => {
+		const { h, sessionToken } = await liveLogin()
+		const res = await handleAuth(
+			logout(sessionToken, { method: 'POST', headers: { Origin: ISSUER, 'Sec-Fetch-Site': 'same-origin' } }),
+			h.makeServices({ issuer: ISSUER, oidc: new FakeOidc(null) }),
+			AUTH_ENV,
+			ctx(),
+		)
+		expect(res.status).toBe(302)
+		expect(res.headers.get('location')).not.toContain('cloudflareaccess.com')
+	})
+
 	test('a cross-site navigation cannot log anyone out', async () => {
 		// `px_session` is SameSite=Lax, so a top-level GET from any page carried it — and because every
 		// app session hangs off this one, that single request signed the human out everywhere.

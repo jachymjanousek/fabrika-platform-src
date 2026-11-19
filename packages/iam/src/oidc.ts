@@ -101,6 +101,27 @@ export async function pkceChallenge(verifier: string): Promise<string> {
 
 // ── The client ───────────────────────────────────────────────────────────────────
 
+/**
+ * Where the browser ends the provider's own session after IAM ended its login, or null to keep IAM's landing.
+ *
+ * Why: the provider keeps a session of its own. While it lasts, the next IAM sign-in passes through the provider with no
+ * prompt, so a person who signed out is signed in again by the next page. Cloudflare Access publishes no
+ * `end_session_endpoint`; its team-domain logout `/cdn-cgi/access/logout` ends that session and every Access app session.
+ * Only Access is recognised: an `end_session_endpoint` also wants an `id_token_hint`, which IAM does not keep.
+ *
+ * @param issuer the configured `OIDC_ISSUER`
+ */
+export function providerLogoutUrl(issuer: string): string | null {
+	let url: URL
+	try {
+		url = new URL(issuer)
+	} catch {
+		return null
+	}
+	if (url.protocol !== 'https:' || !url.hostname.endsWith('.cloudflareaccess.com')) return null
+	return `${url.origin}/cdn-cgi/access/logout`
+}
+
 export class OidcClient {
 	constructor(
 		private readonly config: OidcConfig,
@@ -119,6 +140,11 @@ export class OidcClient {
 		url.searchParams.set('code_challenge', params.codeChallenge)
 		url.searchParams.set('code_challenge_method', 'S256')
 		return url.toString()
+	}
+
+	/** The provider's own sign-out address, or null; see `providerLogoutUrl`. */
+	logoutUrl(): string | null {
+		return providerLogoutUrl(this.config.issuer)
 	}
 
 	/**

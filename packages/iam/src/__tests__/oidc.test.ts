@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { createLocalJWKSet, exportJWK, generateKeyPair, type JSONWebKeySet, type JWTPayload, SignJWT } from 'jose'
-import { generatePkce, OidcClient, type OidcConfig, type OidcMetadata, randomToken } from '../oidc'
+import { generatePkce, OidcClient, type OidcConfig, type OidcMetadata, providerLogoutUrl, randomToken } from '../oidc'
 
 const ISSUER = 'https://idp.test'
 const METADATA: OidcMetadata = {
@@ -165,5 +165,18 @@ describe('discovery', () => {
 
 	test('returns the injected metadata without a network call', async () => {
 		expect(await oidc().metadata()).toEqual(METADATA)
+	})
+})
+
+describe('providerLogoutUrl', () => {
+	test('Cloudflare Access: the team-domain logout', () => {
+		expect(providerLogoutUrl('https://team.cloudflareaccess.com/cdn-cgi/access/sso/oidc/abc')).toBe('https://team.cloudflareaccess.com/cdn-cgi/access/logout')
+	})
+
+	test('any other provider, a look-alike host, plain http or a malformed issuer: none', () => {
+		expect(providerLogoutUrl('https://accounts.google.com')).toBeNull()
+		expect(providerLogoutUrl('https://cloudflareaccess.com.evil.test/x')).toBeNull()
+		expect(providerLogoutUrl('http://team.cloudflareaccess.com/x')).toBeNull()
+		expect(providerLogoutUrl('not a url')).toBeNull()
 	})
 })
