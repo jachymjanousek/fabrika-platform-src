@@ -505,6 +505,25 @@ describe('app environment namespace assignment', () => {
 		).toBe(409)
 	})
 
+	test('registers a deleted environment again although its run history holds a successful deploy', async () => {
+		// The env delete keeps the run history, so a guard read off that history alone refused every re-registration.
+		const provider: ControlProvider = {
+			id: 'harbor',
+			normalizeRegistration: (input) => input,
+			deploy: () => Promise.resolve({ state: 'succeeded' }),
+		}
+		const { deps } = makeDeps(provider)
+		await deps.repositories.registry.createApp({ id: 'app', repoUrl: 'github.com/acme/app' })
+		expect((await rpcResult(rpcRequest('apps.environments.put', { appId: 'app', env: 'prod', environment: registrationBody() }), deps)).status)
+			.toBe(200)
+		await deps.repositories.runs.createRun({ id: 'successful-run', appId: 'app', env: 'prod', ref: 'main', trigger: 'manual', actor: 'user:test' })
+		await fixtureRuns(deps.repositories.runs, makeFakeLock(deps.repositories)).finish('successful-run', 'succeeded', 0)
+		expect((await rpcResult(rpcRequest('apps.environments.delete', { appId: 'app', env: 'prod' }), deps)).status).toBe(200)
+
+		expect((await rpcResult(rpcRequest('apps.environments.put', { appId: 'app', env: 'prod', environment: registrationBody() }), deps)).status)
+			.toBe(200)
+	})
+
 	test('allows placement changes only without in-flight or successful deploys', async () => {
 		const recording = providerRecording()
 		const { deps } = makeDeps(namespacedProvider(recording))

@@ -52,7 +52,9 @@ export async function putAppEnvUseCase(c: RegistryUseCaseContext, appId: string,
 	const publicOrigin = canonicalOrigin(input.publicOrigin, existing?.public_origin ?? null)
 	const namespace = await resolveRegistrationNamespace(c, input.namespaceId, appId, env, existing)
 	const nextNamespaceId = namespace?.id ?? null
-	if (existing?.namespace_id !== nextNamespaceId) {
+	// Only a live environment can move: a deleted one keeps its run history, and its new registration picks a placement
+	// afresh, so reading that history would refuse every re-registration of an environment that once deployed.
+	if (existing !== null && existing.namespace_id !== nextNamespaceId) {
 		if (await c.repositories.registry.hasInFlightRun(appId, env)) fail(409, 'deployment namespace cannot change while a deploy is in progress')
 		if (await c.repositories.registry.hasSuccessfulRun(appId, env)) fail(409, 'deployment namespace cannot change after a successful deploy')
 	}
