@@ -184,7 +184,7 @@ export interface MakeServicesOptions {
 	/** OIDC client. Defaults to one with injected (offline) discovery metadata; tests override for the callback flow. */
 	oidc?: OidcClient
 	/** Independent auth method switches. Defaults to the legacy OIDC-only mode. */
-	authentication?: { oidc: boolean; password: boolean }
+	authentication?: { oidc: boolean; password: boolean; emailCode?: boolean }
 	passwordHasher?: PasswordHasher
 	/** The lowest minimum password length an administrator may set. Defaults to the Bun runtime's. */
 	passwordMinLengthFloor?: number
@@ -219,6 +219,7 @@ export function makeServicesFor(repositories: IamRepositories, options: MakeServ
 		authentication: {
 			oidc: { enabled: options.authentication?.oidc ?? true },
 			password: { enabled: options.authentication?.password ?? false, minLengthFloor: options.passwordMinLengthFloor ?? PASSWORD_MIN_LENGTH_FLOOR },
+			emailCode: { enabled: options.authentication?.emailCode ?? false },
 		},
 		oauth: options.oauth ?? null,
 		retention: options.retention ?? { authLogDays: DEFAULT_AUTH_LOG_RETENTION_DAYS, auditDays: null },

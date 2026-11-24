@@ -25,6 +25,7 @@ interface RemoteConfig {
 	adminAudiences?: string
 	oidcEnabled: boolean
 	passwordEnabled: boolean
+	emailCodeEnabled: boolean
 	oidcIssuer: string
 	oidcClientId: string
 	email: EmailTransportConfig
@@ -35,6 +36,8 @@ interface RemoteConfig {
 interface AuthenticationConfig {
 	oidcEnabled: boolean
 	passwordEnabled: boolean
+	/** Sign-in with a mailed code (joat fork, docs/specs/joat-email-code-sign-in.md). */
+	emailCodeEnabled: boolean
 }
 
 const requiredDomain = (domain: string | undefined): string => {
@@ -56,8 +59,9 @@ const authenticationConfig = (source: EnvironmentSource): AuthenticationConfig =
 	const config = {
 		oidcEnabled: booleanValue(source, 'FABRIKA_IAM_OIDC_ENABLED', true),
 		passwordEnabled: booleanValue(source, 'FABRIKA_IAM_PASSWORD_ENABLED', false),
+		emailCodeEnabled: booleanValue(source, 'FABRIKA_IAM_EMAIL_CODE_ENABLED', false),
 	}
-	if (!config.oidcEnabled && !config.passwordEnabled) {
+	if (!config.oidcEnabled && !config.passwordEnabled && !config.emailCodeEnabled) {
 		throw new Error('At least one IAM authentication method must be enabled')
 	}
 	return config
@@ -114,6 +118,9 @@ const remoteConfig = (env: string, domain: string | undefined, source: Environme
 		if (!oidcClientId) missing.push('FABRIKA_IAM_OIDC_CLIENT_ID')
 		if (!source['OIDC_CLIENT_SECRET']) missing.push('OIDC_CLIENT_SECRET')
 	}
+	if (authentication.emailCodeEnabled && email.kind === 'none') {
+		throw new Error('FABRIKA_IAM_EMAIL_CODE_ENABLED needs an email provider; set FABRIKA_EMAIL_PROVIDER')
+	}
 	if (!signingKeys) missing.push('FABRIKA_IAM_SIGNING_KEYS')
 	if (domain === undefined || domain === '') {
 		missing.push('FABRIKA_IAM_HOSTNAME')
@@ -128,6 +135,7 @@ const remoteConfig = (env: string, domain: string | undefined, source: Environme
 		...(adminAudiences === undefined ? {} : { adminAudiences }),
 		oidcEnabled: authentication.oidcEnabled,
 		passwordEnabled: authentication.passwordEnabled,
+		emailCodeEnabled: authentication.emailCodeEnabled,
 		oidcIssuer: oidcIssuer ?? '',
 		oidcClientId: oidcClientId ?? '',
 		email,
@@ -171,6 +179,7 @@ const buildVars = (config: RemoteConfig | 'local', source: EnvironmentSource): R
 		ISSUER: `https://${config.domain}`,
 		OIDC_ENABLED: String(config.oidcEnabled),
 		PASSWORD_ENABLED: String(config.passwordEnabled),
+		EMAIL_CODE_ENABLED: String(config.emailCodeEnabled),
 		OIDC_ISSUER: config.oidcIssuer,
 		OIDC_CLIENT_ID: config.oidcClientId,
 		OIDC_SCOPES: source['FABRIKA_IAM_OIDC_SCOPES'] ?? '',
@@ -200,11 +209,12 @@ export const iamPipelineVars = (source: EnvironmentSource): string[] => {
 		'FABRIKA_IAM_AUDIT_RETENTION_DAYS',
 		'FABRIKA_IAM_OIDC_ENABLED',
 		'FABRIKA_IAM_PASSWORD_ENABLED',
+		'FABRIKA_IAM_EMAIL_CODE_ENABLED',
 		'FABRIKA_EMAIL_PROVIDER',
 		'FABRIKA_CONTROL_URL',
-		...(authentication.oidcEnabled
-			? ['FABRIKA_IAM_HUMAN_EMAIL_DOMAINS', 'FABRIKA_IAM_OIDC_ISSUER', 'FABRIKA_IAM_OIDC_CLIENT_ID']
-			: []),
+		// The allowlist decides self-provisioning for both methods that can create a person.
+		...(authentication.oidcEnabled || authentication.emailCodeEnabled ? ['FABRIKA_IAM_HUMAN_EMAIL_DOMAINS'] : []),
+		...(authentication.oidcEnabled ? ['FABRIKA_IAM_OIDC_ISSUER', 'FABRIKA_IAM_OIDC_CLIENT_ID'] : []),
 		...(email.kind === 'provider' ? ['FABRIKA_EMAIL_FROM', 'FABRIKA_EMAIL_FROM_NAME', ...emailVariableNames(email, false)] : []),
 	]
 }

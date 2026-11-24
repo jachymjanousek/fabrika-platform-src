@@ -57,6 +57,8 @@ export interface Config {
 			/** The lowest minimum length an administrator may set here (`passwordMinLengthFloor` of the hasher's cost). */
 			readonly minLengthFloor: number
 		}
+		/** Sign-in with a code IAM mails to the person (`EMAIL_CODE_ENABLED`). Never on without an email sender. */
+		readonly emailCode: { readonly enabled: boolean }
 	}
 	/** The OAuth authorization server for MCP clients; null = off. */
 	readonly oauth: OAuthConfig | null
@@ -118,17 +120,23 @@ export function buildServices(env: Env): Services {
 	const environment = readEnvironmentName(env.ENVIRONMENT, env.ISSUER)
 	const oidcEnabled = parseBooleanSwitch('OIDC_ENABLED', env.OIDC_ENABLED, true)
 	const passwordEnabled = parseBooleanSwitch('PASSWORD_ENABLED', env.PASSWORD_ENABLED, false)
-	if (!oidcEnabled && !passwordEnabled) {
+	const emailCodeEnabled = parseBooleanSwitch('EMAIL_CODE_ENABLED', env.EMAIL_CODE_ENABLED, false)
+	if (!oidcEnabled && !passwordEnabled && !emailCodeEnabled) {
 		throw new Error('At least one authentication method must be enabled')
 	}
 	const oidc = oidcEnabled ? buildOidc(env) : null
 	const adminAudiences = parseAdminAudiences(env.ADMIN_AUDIENCES)
 	const passwordCost = env.PASSWORD_COST ?? BUN_PBKDF2_COST
+	const email = buildEmailSender(env, environment)
+	// Refusing to boot beats a sign-in page whose codes can never arrive.
+	if (emailCodeEnabled && email === null) {
+		throw new Error('EMAIL_CODE_ENABLED needs an email sender; set FABRIKA_EMAIL_PROVIDER')
+	}
 	return {
 		repositories: env.REPOSITORIES,
 		oidc,
 		passwordHasher: new WebCryptoPasswordHasher(passwordCost),
-		email: buildEmailSender(env, environment),
+		email,
 		config: {
 			human: {
 				emailDomains: parseJsonStringArray(env.HUMAN_EMAIL_DOMAINS),
@@ -142,6 +150,7 @@ export function buildServices(env: Env): Services {
 			authentication: {
 				oidc: { enabled: oidcEnabled },
 				password: { enabled: passwordEnabled, minLengthFloor: passwordMinLengthFloor(passwordCost) },
+				emailCode: { enabled: emailCodeEnabled },
 			},
 			oauth: parseOAuthConfig(env.OAUTH_CONFIG),
 			retention: parseRetention({ authLogDays: env.AUTH_LOG_RETENTION_DAYS, auditDays: env.AUDIT_RETENTION_DAYS }),

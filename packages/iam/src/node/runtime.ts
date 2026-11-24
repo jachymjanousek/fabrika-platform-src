@@ -83,7 +83,8 @@ export async function createRuntime(source: Record<string, string | undefined> =
 	const environment = readEnvironmentName(required(source, 'ENVIRONMENT'), issuer)
 	const oidcEnabled = booleanValue(source, 'FABRIKA_IAM_OIDC_ENABLED', true)
 	const passwordEnabled = booleanValue(source, 'FABRIKA_IAM_PASSWORD_ENABLED', false)
-	if (!oidcEnabled && !passwordEnabled) {
+	const emailCodeEnabled = booleanValue(source, 'FABRIKA_IAM_EMAIL_CODE_ENABLED', false)
+	if (!oidcEnabled && !passwordEnabled && !emailCodeEnabled) {
 		throw new Error('At least one IAM authentication method must be enabled')
 	}
 	const oidcIssuer = oidcEnabled ? required(source, 'OIDC_ISSUER') : source['OIDC_ISSUER'] ?? ''
@@ -140,6 +141,7 @@ export async function createRuntime(source: Record<string, string | undefined> =
 		FABRIKA_IAM_PROVISIONING_KEY: source['FABRIKA_IAM_PROVISIONING_KEY'] ?? '',
 		OIDC_ENABLED: String(oidcEnabled),
 		PASSWORD_ENABLED: String(passwordEnabled),
+		EMAIL_CODE_ENABLED: String(emailCodeEnabled),
 		OIDC_ISSUER: oidcIssuer,
 		OIDC_CLIENT_ID: oidcClientId,
 		OIDC_CLIENT_SECRET: oidcClientSecret,

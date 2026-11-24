@@ -23,6 +23,19 @@ export interface PageText {
 		readonly singleSignOn: string
 		readonly invalidCredentials: string
 	}
+	/** Sign-in with a code IAM mails to the person (joat fork): the address form, then the code form. */
+	readonly emailCode: {
+		readonly intro: string
+		readonly send: string
+		readonly codeTitle: string
+		/** The answer is the same for every address, so it never says whether one can sign in. */
+		readonly codeText: (minutes: number) => string
+		readonly code: string
+		readonly verify: string
+		readonly invalid: string
+		readonly again: string
+		readonly withPassword: string
+	}
 	/** A handoff a browser already signed in here may continue, or end to sign in with another account. */
 	readonly chooseAccount: {
 		readonly title: (appName: string | null) => string
@@ -150,9 +163,18 @@ export interface ApplicationMailText {
 	readonly expiry: (expiresAt: number) => string
 }
 
+/** The values of IAM's sign-in code mail. Not a `MessageKind`: an application cannot word it. */
+export interface SignInCodeValues {
+	/** The application the sign-in came from; `null` for a sign-in on the installation itself. */
+	readonly appName: string | null
+	readonly code: string
+	readonly minutes: number
+}
+
 export interface Catalog {
 	readonly pages: PageText
 	readonly messages: MessageTemplates
+	readonly signInCode: (values: SignInCodeValues) => RenderedMessage
 	readonly applicationMail: ApplicationMailText
 }
 

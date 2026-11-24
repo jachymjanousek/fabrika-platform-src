@@ -49,6 +49,8 @@ export function runIamMaintenance(env: Env, ctx: RequestContext, now: number = D
 			services.repositories.sessions.pruneSessions(nowSeconds),
 			// Identifications live two minutes and are single-use, like handoff codes.
 			services.repositories.terminals.pruneIdentifications(nowSeconds),
+			// Codes live ten minutes; a day of grace keeps a row for a person who asks why a code failed.
+			services.repositories.emailCodes.prune(nowSeconds - DAY_SECONDS),
 		]).then(() => undefined),
 	)
 }

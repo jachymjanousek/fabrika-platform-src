@@ -23,6 +23,7 @@ const ENV_NAMES = [
 	'FABRIKA_IAM_AUTH_LOG_RETENTION_DAYS',
 	'FABRIKA_IAM_AUDIT_RETENTION_DAYS',
 	'FABRIKA_IAM_OIDC_REQUIRE_VERIFIED_EMAIL',
+	'FABRIKA_IAM_EMAIL_CODE_ENABLED',
 	'FABRIKA_EMAIL_FROM',
 	'FABRIKA_EMAIL_FROM_NAME',
 	'FABRIKA_CONTROL_URL',
@@ -67,6 +68,7 @@ describe('IAM resource graph', () => {
 			'FABRIKA_IAM_AUDIT_RETENTION_DAYS',
 			'FABRIKA_IAM_OIDC_ENABLED',
 			'FABRIKA_IAM_PASSWORD_ENABLED',
+			'FABRIKA_IAM_EMAIL_CODE_ENABLED',
 			'FABRIKA_EMAIL_PROVIDER',
 			'FABRIKA_CONTROL_URL',
 			'FABRIKA_IAM_HUMAN_EMAIL_DOMAINS',
@@ -178,10 +180,32 @@ describe('IAM resource graph', () => {
 			'FABRIKA_IAM_AUDIT_RETENTION_DAYS',
 			'FABRIKA_IAM_OIDC_ENABLED',
 			'FABRIKA_IAM_PASSWORD_ENABLED',
+			'FABRIKA_IAM_EMAIL_CODE_ENABLED',
 			'FABRIKA_EMAIL_PROVIDER',
 			'FABRIKA_CONTROL_URL',
 		])
 		expect(iamPipelineSecrets(source)).toEqual(['FABRIKA_IAM_SIGNING_KEYS', 'FABRIKA_IAM_PROVISIONING_KEY'])
+	})
+
+	test('supports email-code-only authentication, which needs an email provider', () => {
+		const source = {
+			FABRIKA_IAM_OIDC_ENABLED: 'false',
+			FABRIKA_IAM_PASSWORD_ENABLED: 'false',
+			FABRIKA_IAM_EMAIL_CODE_ENABLED: 'true',
+			FABRIKA_IAM_HUMAN_EMAIL_DOMAINS: '["*"]',
+			FABRIKA_IAM_SIGNING_KEYS: 'private-signing-key-material',
+			FABRIKA_EMAIL_PROVIDER: 'resend',
+			FABRIKA_EMAIL_FROM: 'platform@example.com',
+			FABRIKA_EMAIL_RESEND_API_KEY: 'resend-key',
+		}
+		const worker = buildIamWorker({ env: 'stage', domain: REMOTE_DOMAIN }, source)
+		expect(worker.options.vars?.['EMAIL_CODE_ENABLED']).toBe('true')
+		expect(worker.options.vars?.['OIDC_ENABLED']).toBe('false')
+		expect(worker.options.vars?.['HUMAN_EMAIL_DOMAINS']).toBe('["*"]')
+		expect(iamPipelineVars(source)).toContain('FABRIKA_IAM_HUMAN_EMAIL_DOMAINS')
+		expect(() => buildIamWorker({ env: 'stage', domain: REMOTE_DOMAIN }, { ...source, FABRIKA_EMAIL_PROVIDER: 'none' })).toThrow(
+			'FABRIKA_IAM_EMAIL_CODE_ENABLED needs an email provider',
+		)
 	})
 
 	test('rejects disabled or invalid authentication methods', () => {

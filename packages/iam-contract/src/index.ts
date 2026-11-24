@@ -140,7 +140,7 @@ export interface SessionDto {
 	 * How the human proved who they were; `local_dev` is IAM's `LOCAL_DEV_LOGIN` bypass, `terminal_assertion` an
 	 * application's word about who stands at an enrolled terminal.
 	 */
-	authenticationMethod: 'oidc' | 'password' | 'local_dev' | 'terminal_assertion'
+	authenticationMethod: 'oidc' | 'password' | 'local_dev' | 'terminal_assertion' | 'email_code'
 	/** The app this session is bound to (an ADR-0022 child); null = the IAM session itself. */
 	app: string | null
 	/** The IAM session this was derived from; null on an IAM session. Revoking that one revokes this. */

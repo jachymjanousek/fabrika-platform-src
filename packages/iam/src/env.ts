@@ -59,6 +59,8 @@ export interface Env {
 	/** Independent authentication-method switches. Absent preserves the legacy OIDC-only mode. */
 	OIDC_ENABLED?: string
 	PASSWORD_ENABLED?: string
+	/** Sign-in with a mailed code (joat fork). Needs an email sender. Absent is off. */
+	EMAIL_CODE_ENABLED?: string
 	/** The installation's `FABRIKA_EMAIL_*` variables. An absent or `none` provider disables delivery. */
 	EMAIL_CONFIG?: EmailEnvironment
 	/** The providers `FABRIKA_EMAIL_PROVIDER` may name. Absent is an empty registry, which admits only `none`. */

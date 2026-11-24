@@ -168,6 +168,41 @@ export class PrincipalRepository {
 	}
 
 	/**
+	 * Create an active internal user whose mailbox IAM proved itself, by a code it mailed (joat fork). It has no IdP
+	 * subject: an OIDC login with the same address later claims it as it claims an invited row.
+	 */
+	async createVerifiedUser(email: string, audit?: (principalId: string) => AuditEventInput): Promise<PrincipalRow> {
+		const id = uuidv7()
+		const now = unixNow()
+		const mailbox = normalizeEmailIdentity(email)
+		return this.insertUser([
+			this.db
+				.prepare(`INSERT INTO principals (id, type, external_id, email, label, activated_at, created_at)
+					VALUES (?, 'user', NULL, ?, ?, ?, ?) RETURNING *`)
+				.bind(id, mailbox, email, now, now),
+			this.claimMailboxStatement(mailbox, id),
+			...(audit === undefined ? [] : [auditEventStatement(this.db, audit(id))]),
+		])
+	}
+
+	/**
+	 * Activate an invited user whose mailbox IAM proved by a mailed code. A disabled row stays as it is. Returns the row
+	 * as it is after the change, or null when it is gone or disabled.
+	 */
+	async activateVerifiedUser(id: string, audit?: AuditEventInput): Promise<PrincipalRow | null> {
+		const activate: SqlChange = {
+			sql: `UPDATE principals SET activated_at = ?
+				WHERE id = ? AND type = 'user' AND activated_at IS NULL AND disabled_at IS NULL
+				RETURNING *`,
+			binds: [unixNow(), id],
+		}
+		const [activated] = await this.writer.run<PrincipalRow>([activate], audit)
+		if (activated !== undefined) return activated
+		const current = await this.getPrincipalById(id)
+		return current === null || current.disabled_at !== null ? null : current
+	}
+
+	/**
 	 * Reserve one mailbox for one principal. `principal_email_claims` is a second lock over the same
 	 * rule `idx_principals_uq_email` enforces, and it moves with a principal whose address changes —
 	 * every user row that carries a mailbox carries a claim for it.

@@ -16,6 +16,17 @@ export const en: Catalog = {
 			singleSignOn: 'Continue with single sign-on',
 			invalidCredentials: 'Invalid email or password.',
 		},
+		emailCode: {
+			intro: 'We send a one-time code to this address.',
+			send: 'Send code',
+			codeTitle: 'Enter the code',
+			codeText: (minutes) => `If this address can sign in, we sent a 6-digit code to it. The code is valid for ${minutes} minutes.`,
+			code: 'Code',
+			verify: 'Sign in',
+			invalid: 'The code is wrong, expired or already used.',
+			again: 'Send a new code',
+			withPassword: 'Sign in with a password',
+		},
 		chooseAccount: {
 			title: (appName) => (appName === null ? 'Continue to the application' : `Continue to ${appName}`),
 			signedInAs: 'You are signed in as',
@@ -167,6 +178,22 @@ export const en: Catalog = {
 				appName === null ? 'reset your Fabrika password' : `reset your password for ${appName}`,
 				actionUrl,
 			),
+	},
+	signInCode: ({ appName, code, minutes }) => {
+		const where = appName === null ? 'Fabrika' : appName
+		const lines = [
+			`Your code to sign in to ${where}:`,
+			code,
+			`It is valid for ${minutes} minutes and only in the browser where you asked for it.`,
+			'If you did not ask for a code, you can ignore this email.',
+		]
+		return {
+			subject: `${code} is your code for ${where}`,
+			text: lines.join('\n\n'),
+			html: `<p>${escapeHtml(lines[0] ?? '')}</p><p style="font-size:24px;letter-spacing:4px"><strong>${escapeHtml(code)}</strong></p><p>${
+				escapeHtml(lines[2] ?? '')
+			}</p><p>${escapeHtml(lines[3] ?? '')}</p>`,
+		}
 	},
 	applicationMail: {
 		button: { invitation: 'Accept the invitation', enrollment: 'Set your password', reset: 'Reset your password' },

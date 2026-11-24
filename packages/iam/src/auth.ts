@@ -30,6 +30,8 @@ export function sessionUsable(
 			return config.authentication.oidc.enabled
 		case 'password':
 			return config.authentication.password.enabled
+		case 'email_code':
+			return config.authentication.emailCode.enabled
 		case 'local_dev':
 			return config.localDevLogin
 		// No person can enable this method for themselves; the session lookup already refuses a revoked terminal.

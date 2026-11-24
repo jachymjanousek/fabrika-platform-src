@@ -16,6 +16,17 @@ export const cs: Catalog = {
 			singleSignOn: 'Pokračovat přes jednotné přihlášení',
 			invalidCredentials: 'Neplatný e-mail nebo heslo.',
 		},
+		emailCode: {
+			intro: 'Na tuto adresu pošleme jednorázový kód.',
+			send: 'Poslat kód',
+			codeTitle: 'Zadejte kód',
+			codeText: (minutes) => `Pokud se tato adresa může přihlásit, poslali jsme na ni šestimístný kód. Kód platí ${minutes} minut.`,
+			code: 'Kód',
+			verify: 'Přihlásit se',
+			invalid: 'Kód je špatný, vypršel, nebo už byl použit.',
+			again: 'Poslat nový kód',
+			withPassword: 'Přihlásit se heslem',
+		},
 		chooseAccount: {
 			title: (appName) => (appName === null ? 'Pokračovat do aplikace' : `Pokračovat do aplikace ${appName}`),
 			signedInAs: 'Jste přihlášeni jako',
@@ -168,6 +179,22 @@ export const cs: Catalog = {
 				'si obnovíte heslo',
 				actionUrl,
 			),
+	},
+	signInCode: ({ appName, code, minutes }) => {
+		const where = appName === null ? 'Fabriky' : `aplikace ${appName}`
+		const lines = [
+			`Váš kód pro přihlášení do ${where}:`,
+			code,
+			`Platí ${minutes} minut a jen v prohlížeči, ve kterém jste o něj požádali.`,
+			'Pokud jste o kód nežádali, můžete tento e-mail ignorovat.',
+		]
+		return {
+			subject: `${code} je váš kód pro přihlášení do ${where}`,
+			text: lines.join('\n\n'),
+			html: `<p>${escapeHtml(lines[0] ?? '')}</p><p style="font-size:24px;letter-spacing:4px"><strong>${escapeHtml(code)}</strong></p><p>${
+				escapeHtml(lines[2] ?? '')
+			}</p><p>${escapeHtml(lines[3] ?? '')}</p>`,
+		}
 	},
 	applicationMail: {
 		button: { invitation: 'Přijmout pozvánku', enrollment: 'Nastavit heslo', reset: 'Obnovit heslo' },

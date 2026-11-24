@@ -59,8 +59,12 @@ async function handoffStatus(services: Services, session: string): Promise<numbe
 }
 
 describe('sessionUsable', () => {
-	const config = (oidc: boolean, password: boolean, localDevLogin: boolean) => ({
-		authentication: { oidc: { enabled: oidc }, password: { enabled: password, minLengthFloor: PASSWORD_MIN_LENGTH_FLOOR } },
+	const config = (oidc: boolean, password: boolean, localDevLogin: boolean, emailCode = false) => ({
+		authentication: {
+			oidc: { enabled: oidc },
+			password: { enabled: password, minLengthFloor: PASSWORD_MIN_LENGTH_FLOOR },
+			emailCode: { enabled: emailCode },
+		},
 		localDevLogin,
 	})
 
@@ -73,6 +77,8 @@ describe('sessionUsable', () => {
 		// The bypass is the case the naive rule broke: a local installation runs with OIDC off.
 		expect(sessionUsable(method('local_dev'), config(false, true, true))).toBe(true)
 		expect(sessionUsable(method('local_dev'), config(true, true, false))).toBe(false)
+		expect(sessionUsable(method('email_code'), config(false, false, false, true))).toBe(true)
+		expect(sessionUsable(method('email_code'), config(true, true, true, false))).toBe(false)
 	})
 })
 

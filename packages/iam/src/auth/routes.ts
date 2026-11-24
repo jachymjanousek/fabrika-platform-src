@@ -7,10 +7,11 @@ import type { RequestContext } from '../env'
 import { TERMINAL_COMPLETE_PATH } from '../identification'
 import { installationBrand } from '../installation-brand'
 import { INVITATION_ACCEPT_PATH } from '../membership'
-import { ACCOUNT_CHOICE_PATH, logoutPage, TERMINAL_ENROL_PATH } from '../password-pages'
+import { ACCOUNT_CHOICE_PATH, EMAIL_CODE_PATH, EMAIL_CODE_VERIFY_PATH, logoutPage, TERMINAL_ENROL_PATH } from '../password-pages'
 import { generateRequestId } from '../request-id'
 import type { Services } from '../services'
 import { getSigner } from '../signing'
+import { handleEmailCodeRequest, handleEmailCodeVerify } from './email-code'
 import { methodNotAllowed, safeRedirect } from './http'
 import { handleInvitation } from './invitations'
 import { handleAccountChoice, handleLogin } from './login'
@@ -47,6 +48,12 @@ export async function handleAuth(
 		if (request.method === 'POST') return handlePasswordLogin(request, services, env, ctx, clientAddress, requestId)
 		if (request.method === 'GET') return handleLogin(request, services, env, ctx, requestId)
 		return methodNotAllowed()
+	}
+	if (url.pathname === EMAIL_CODE_PATH) {
+		return handleEmailCodeRequest(request, services, ctx, clientAddress, requestId)
+	}
+	if (url.pathname === EMAIL_CODE_VERIFY_PATH) {
+		return handleEmailCodeVerify(request, services, ctx, clientAddress, requestId)
 	}
 	if (url.pathname === ACCOUNT_CHOICE_PATH) {
 		return request.method === 'POST' ? handleAccountChoice(request, services, requestId) : methodNotAllowed()

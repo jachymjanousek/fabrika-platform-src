@@ -4,7 +4,7 @@ import { LOCAL_DEV_ADMIN_EMAIL, LOCAL_DEV_ADMIN_ID } from '../auth'
 import { type SessionRow } from '../db'
 
 import { type RequestContext } from '../env'
-import { authFailurePage, chooseAccountPage, loginPage } from '../password-pages'
+import { authFailurePage, chooseAccountPage, emailCodeStartPage, loginPage } from '../password-pages'
 import { resolveUserPrincipal } from '../resolve'
 import { type Services } from '../services'
 import { type Handoff, handoffLocation, handoffLoginUrl, handoffOf, handoffRedirectOr, loginDestinationFields, readHandoff } from './handoff'
@@ -65,6 +65,17 @@ export async function handleLogin(
 
 	if (services.config.localDevLogin) {
 		return handleLocalLogin(request, services, ctx, requestId, redirect, handoff, presentation)
+	}
+	// The email code is the first offer; `?method=password` is its link to the password form, which keeps the handoff.
+	const { emailCode, password, oidc } = services.config.authentication
+	if (emailCode.enabled && !(password.enabled && url.searchParams.get('method') === 'password')) {
+		return emailCodeStartPage({
+			presentation,
+			redirect,
+			passwordEnabled: password.enabled,
+			oidcEnabled: oidc.enabled,
+			...await loginDestinationFields(services, handoff, redirect),
+		})
 	}
 	if (services.config.authentication.password.enabled) {
 		return loginPage({

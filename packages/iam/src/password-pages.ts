@@ -65,6 +65,94 @@ export function loginPage(input: {
 	})
 }
 
+/** The handoff of a sign-in, as the email-code forms carry it. Every POST reads it again (`readHandoff`). */
+export interface SignInFields {
+	readonly presentation: AppPresentation
+	/** An address on IAM's own origin, or a handoff's destination; null lands on the installation's landing. */
+	readonly redirect: string | null
+	readonly app?: string
+	readonly handoffState?: string
+	readonly handoffChallenge?: string
+	/** The registered origin the final 302 goes to, which `form-action` must admit (see `loginPage`). */
+	readonly redirectOrigin?: string
+}
+
+function signInHiddenFields(input: SignInFields): string {
+	return `<input type="hidden" name="redirect" value="${escapeHtml(input.redirect ?? '')}">
+			${input.app === undefined ? '' : `<input type="hidden" name="app" value="${escapeHtml(input.app)}">`}
+			${input.handoffState === undefined ? '' : `<input type="hidden" name="state" value="${escapeHtml(input.handoffState)}">`}
+			${input.handoffChallenge === undefined ? '' : `<input type="hidden" name="code_challenge" value="${escapeHtml(input.handoffChallenge)}">`}`
+}
+
+/** The same handoff as a query, for a link that starts the sign-in again with another method. */
+function signInQuery(input: SignInFields, extra: Record<string, string>): string {
+	const query = new URLSearchParams(extra)
+	if (input.redirect !== null) query.set('redirect', input.redirect)
+	if (input.app !== undefined) query.set('app', input.app)
+	if (input.handoffState !== undefined) query.set('state', input.handoffState)
+	if (input.handoffChallenge !== undefined) query.set('code_challenge', input.handoffChallenge)
+	return query.toString()
+}
+
+/** Where the address form posts (joat fork, docs/specs/joat-email-code-sign-in.md). */
+export const EMAIL_CODE_PATH = '/auth/code'
+/** Where the code form posts. */
+export const EMAIL_CODE_VERIFY_PATH = '/auth/code/verify'
+
+/**
+ * The first step of a sign-in with an email code: the address. A password sign-in, when the installation enables it,
+ * is one link away and keeps the handoff.
+ */
+export function emailCodeStartPage(
+	input: SignInFields & { readonly passwordEnabled: boolean; readonly oidcEnabled: boolean; readonly status?: number },
+): Response {
+	const text = catalogFor(input.presentation.locale).pages
+	const title = text.signIn.title(input.presentation.displayName)
+	const passwordUrl = `/auth/login?${signInQuery(input, { method: 'password' })}`
+	const oidcUrl = `/auth/oidc/start?${signInQuery({ ...input, redirect: input.redirect ?? '' }, {})}`
+	return htmlPage({
+		locale: input.presentation.locale,
+		brand: input.presentation.brand,
+		title,
+		content: `<h1>${escapeHtml(title)}</h1><p>${escapeHtml(text.emailCode.intro)}</p>
+		<form method="post" action="${EMAIL_CODE_PATH}">
+			${signInHiddenFields(input)}
+			<label>${escapeHtml(text.email)}<input name="email" type="email" autocomplete="email" inputmode="email" required autofocus></label>
+			<button type="submit">${escapeHtml(text.emailCode.send)}</button>
+		</form>
+		${input.passwordEnabled ? `<p><a href="${escapeHtml(passwordUrl)}">${escapeHtml(text.emailCode.withPassword)}</a></p>` : ''}
+		${input.oidcEnabled ? `<hr><p><a class="button" href="${escapeHtml(oidcUrl)}">${escapeHtml(text.signIn.singleSignOn)}</a></p>` : ''}`,
+		status: input.status,
+	})
+}
+
+/**
+ * The second step: the code. It reads the same for every address, so it never tells whether one can sign in. The
+ * correct code answers a 302 to the handoff's destination, so `form-action` admits `redirectOrigin`.
+ */
+export function emailCodeEntryPage(input: SignInFields & { readonly minutes: number; readonly invalid?: boolean }): Response {
+	const text = catalogFor(input.presentation.locale).pages
+	const again = `/auth/login?${signInQuery(input, {})}`
+	return htmlPage({
+		locale: input.presentation.locale,
+		brand: input.presentation.brand,
+		title: text.emailCode.codeTitle,
+		content: `<h1>${escapeHtml(text.emailCode.codeTitle)}</h1>${message(input.invalid === true ? text.emailCode.invalid : undefined)}<p>${
+			escapeHtml(text.emailCode.codeText(input.minutes))
+		}</p>
+		<form method="post" action="${EMAIL_CODE_VERIFY_PATH}">
+			${signInHiddenFields(input)}
+			<label>${
+			escapeHtml(text.emailCode.code)
+		}<input name="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]{6,7}" maxlength="7" required autofocus></label>
+			<button type="submit">${escapeHtml(text.emailCode.verify)}</button>
+		</form>
+		<p><a href="${escapeHtml(again)}">${escapeHtml(text.emailCode.again)}</a></p>`,
+		status: input.invalid === true ? 401 : 200,
+		formActionOrigin: input.redirectOrigin,
+	})
+}
+
 /** Where the account question posts its answer, with the handoff's fields and a `decision`. */
 export const ACCOUNT_CHOICE_PATH = '/auth/login/account'
 

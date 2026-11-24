@@ -137,6 +137,9 @@ export type LoginRefusal =
 	| 'oidc_unknown_principal'
 	| 'oidc_external_principal'
 	| 'local_login_refused'
+	| 'email_code_invalid'
+	| 'email_code_throttled'
+	| 'email_code_refused'
 
 export async function refuseLogin(
 	services: Services,

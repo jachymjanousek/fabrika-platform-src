@@ -5,6 +5,7 @@ import { AuditRepository, AuditWriter, type SqlDialect } from './repositories/au
 import { InstallationBrandRepository } from './repositories/brand'
 import { CredentialRepository } from './repositories/credentials'
 import { DeviceAuthorizationRepository } from './repositories/device'
+import { EmailCodeRepository } from './repositories/email-codes'
 import { GrantRepository } from './repositories/grants'
 import { HandoffRepository } from './repositories/handoff'
 import { MembershipRepository } from './repositories/membership'
@@ -43,6 +44,7 @@ export {
 export { type InstallationBrandImages, InstallationBrandRepository, type InstallationBrandRow } from './repositories/brand'
 export { type CredentialGrantRow, CredentialRepository, type CredentialRow } from './repositories/credentials'
 export { DeviceAuthorizationRepository, type DeviceAuthorizationRow, type DeviceReceiptRow } from './repositories/device'
+export { EMAIL_CODE_MAX_GUESSES, EmailCodeRepository, type EmailCodeRow } from './repositories/email-codes'
 export { type DelegatedAuthority, ExternalGrantError, GrantRepository, type GrantRow } from './repositories/grants'
 export { type AuthCodeRow, HandoffRepository } from './repositories/handoff'
 export {
@@ -90,6 +92,7 @@ export interface IamRepositories {
 	membershipTransport: MembershipTransportKeyRepository
 	brand: InstallationBrandRepository
 	passwordPolicy: PasswordPolicyRepository
+	emailCodes: EmailCodeRepository
 }
 
 /**
@@ -119,6 +122,7 @@ export function createIamRepositories(
 		membershipTransport: replacements.membershipTransport ?? new MembershipTransportKeyRepository(db),
 		brand: replacements.brand ?? new InstallationBrandRepository(db, writer),
 		passwordPolicy: replacements.passwordPolicy ?? new PasswordPolicyRepository(db, writer),
+		emailCodes: replacements.emailCodes ?? new EmailCodeRepository(db),
 	}
 }
 

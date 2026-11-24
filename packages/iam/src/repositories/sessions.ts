@@ -10,8 +10,9 @@ export type LogoutLogInput = Pick<AuthLogInput, 'requestId' | 'app' | 'reason'>
  * How a session's holder proved who they were. `local_dev` is the `LOCAL_DEV_LOGIN` bypass — it has a
  * value of its own so `sessionUsable` can ask whether the method is still enabled with no special case.
  * `terminal_assertion` is an application's word about who stands at an enrolled terminal (ADR-0067).
+ * `email_code` is a code IAM mailed to the person's mailbox (joat fork, docs/specs/joat-email-code-sign-in.md).
  */
-export type AuthenticationMethod = 'oidc' | 'password' | 'local_dev' | 'terminal_assertion'
+export type AuthenticationMethod = 'oidc' | 'password' | 'local_dev' | 'terminal_assertion' | 'email_code'
 
 /** A browser session row (the `sessions` table). Only the cookie's hash is stored, never plaintext. */
 export interface SessionRow {
@@ -71,7 +72,7 @@ export interface NewSession {
 }
 
 /** Methods with no upstream subject: the row CHECK pairs every other method with an `idp_sub`. */
-const SUBJECTLESS_METHODS: readonly AuthenticationMethod[] = ['password', 'terminal_assertion']
+const SUBJECTLESS_METHODS: readonly AuthenticationMethod[] = ['password', 'terminal_assertion', 'email_code']
 
 /**
  * The validity clause over `t`, the terminal of the session or of its parent: a session on no terminal passes, and one
