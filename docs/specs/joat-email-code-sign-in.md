@@ -21,10 +21,10 @@ IAM can do that itself, because it already sends mail.
 
 A third, independent authentication method beside OIDC and password: **`email_code`**.
 
-| Switch | Variable |
-| --- | --- |
-| runtime | `EMAIL_CODE_ENABLED` (`true`/`false`, default `false`) |
-| installation | `FABRIKA_IAM_EMAIL_CODE_ENABLED` |
+| Switch       | Variable                                               |
+| ------------ | ------------------------------------------------------ |
+| runtime      | `EMAIL_CODE_ENABLED` (`true`/`false`, default `false`) |
+| installation | `FABRIKA_IAM_EMAIL_CODE_ENABLED`                       |
 
 - At least one of OIDC, password and email code must be enabled.
 - Email code needs an email sender. `EMAIL_CODE_ENABLED=true` with `FABRIKA_EMAIL_PROVIDER=none` fails the boot.
@@ -42,7 +42,7 @@ POST /auth/code/verify          → 5 guesses per code → session (method email
    - a user principal holds the mailbox and is not disabled (internal or external), or
    - no principal holds it and the human-admission allowlist admits it (`HUMAN_EMAIL_DOMAINS` /
      `HUMAN_EMAILS`, `*` = anyone).
-   The mail goes out in `waitUntil`, so the answer time does not depend on the outcome.
+     The mail goes out in `waitUntil`, so the answer time does not depend on the outcome.
 2. **Attempt binding.** The answer sets `__Host-fabrika_code` (random 32 bytes, `HttpOnly`, `Secure`,
    `SameSite=Strict`, 10 min). Only the browser that asked can use the code. A refused address gets a cookie too,
    with no row behind it.
@@ -64,12 +64,12 @@ POST /auth/code/verify          → 5 guesses per code → session (method email
 
 The existing `login_throttles` buckets (`recordLoginFailure` / `getLoginThrottle`), with new keys:
 
-| Bucket | Key | Limit per 15 min |
-| --- | --- | --- |
-| sends per mailbox | `email-code:account:<mailbox>` | 5 |
-| sends, deployment-wide | `email-code:global` | 500 |
-| sends per client | `email-code:client:<address>` | 30 |
-| verifies per client | `email-code-verify:client:<address>` | 100 |
+| Bucket                 | Key                                  | Limit per 15 min |
+| ---------------------- | ------------------------------------ | ---------------- |
+| sends per mailbox      | `email-code:account:<mailbox>`       | 5                |
+| sends, deployment-wide | `email-code:global`                  | 500              |
+| sends per client       | `email-code:client:<address>`        | 30               |
+| verifies per client    | `email-code-verify:client:<address>` | 100              |
 
 A blocked send answers the same code form and mails nothing.
 
@@ -77,13 +77,13 @@ A blocked send answers the same code form and mails nothing.
 
 New table `email_codes` (D1 and Postgres):
 
-| column | |
-| --- | --- |
-| `attempt_hash` | PK, SHA-256 of the cookie value |
-| `code_hash` | SHA-256(attempt ":" code) |
-| `email` | the normalized mailbox (no principal yet for a new person) |
-| `app` | the application of the presentation (language, name in the mail) |
-| `failures`, `created_at`, `expires_at`, `consumed_at` | |
+| column                                                |                                                                  |
+| ----------------------------------------------------- | ---------------------------------------------------------------- |
+| `attempt_hash`                                        | PK, SHA-256 of the cookie value                                  |
+| `code_hash`                                           | SHA-256(attempt ":" code)                                        |
+| `email`                                               | the normalized mailbox (no principal yet for a new person)       |
+| `app`                                                 | the application of the presentation (language, name in the mail) |
+| `failures`, `created_at`, `expires_at`, `consumed_at` |                                                                  |
 
 The maintenance cron deletes rows that expired more than one day ago.
 

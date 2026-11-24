@@ -10,6 +10,8 @@ combination is derived from two switches; there is no separate hybrid mode.
 | on   | on       | The form offers both password and OIDC continuation.           |
 | off  | off      | Configuration is invalid and startup or materialization fails. |
 
+The joat fork adds a third switch, the email code (below). At least one of the three must be on.
+
 The runtime switches are `OIDC_ENABLED` and `PASSWORD_ENABLED`. An installation
 sets them through `FABRIKA_IAM_OIDC_ENABLED` and
 `FABRIKA_IAM_PASSWORD_ENABLED`. Missing switches retain the compatibility mode:
@@ -29,6 +31,22 @@ fail-closed. Password login never self-provisions, so it does not consult the li
 
 Enabling an email sender does not enable password login, and enabling password
 login does not provision a credential for any user.
+
+## Email code (joat fork)
+
+`EMAIL_CODE_ENABLED` (`FABRIKA_IAM_EMAIL_CODE_ENABLED`) adds a third method: IAM mails a 6-digit code, and the code
+signs the browser in. It needs an email sender; the boot refuses it without one. With it on, `/auth/login` offers the
+address form first, and the password form is one link away (`?method=password`) when password login is on too.
+
+- The answer to a request is the same for every address. A code is mailed only to a user principal that is not
+  disabled, or to an address the human-admission allowlist admits, which then becomes an active internal user with
+  no grants at verification.
+- A code is valid 10 minutes, once, for 5 guesses, and only in the browser that asked (`__Host-fabrika_code`).
+- Sends are throttled per mailbox (5 in 15 minutes), per client (30) and deployment-wide (500).
+- The session's method is `email_code`; it is usable while the method is on.
+
+With OIDC off, sign-out ends every session there is: the next sign-in asks for a new code. The design and its
+limits are in [`specs/joat-email-code-sign-in.md`](../specs/joat-email-code-sign-in.md).
 
 ## Per-user state
 
