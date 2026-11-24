@@ -113,6 +113,7 @@ describe('platform scaffold', () => {
 			expect(iamStep).toContain('FABRIKA_CONTROL_URL: https://${{ vars.FABRIKA_CONTROL_DOMAIN }}')
 			expect(iamStep).toContain('FABRIKA_IAM_OIDC_ENABLED: ${{ vars.FABRIKA_IAM_OIDC_ENABLED }}')
 			expect(iamStep).toContain('FABRIKA_IAM_PASSWORD_ENABLED: ${{ vars.FABRIKA_IAM_PASSWORD_ENABLED }}')
+			expect(iamStep).toContain('FABRIKA_IAM_EMAIL_CODE_ENABLED: ${{ vars.FABRIKA_IAM_EMAIL_CODE_ENABLED }}')
 			expect(iamStep).toContain('FABRIKA_EMAIL_PROVIDER: ${{ vars.FABRIKA_EMAIL_PROVIDER }}')
 			expect(iamStep).toContain('FABRIKA_EMAIL_RESEND_API_KEY: ${{ secrets.FABRIKA_EMAIL_RESEND_API_KEY }}')
 			// Every built-in provider's variable reaches IAM, the secret ones from the Environment's secrets.
