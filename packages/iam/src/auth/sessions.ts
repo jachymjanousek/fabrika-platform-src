@@ -1,20 +1,22 @@
 import { SESSION_COOKIE } from '@fabrika/auth-core'
 import { iamAdministrationScope } from '@fabrika/iam-contract'
 import { IAM_APP } from '../admin/router'
-import { installationLanding, installationPresentation } from '../app-presentation'
+import { type AppPresentation, installationLanding, installationPresentation, presentationFor } from '../app-presentation'
 import { sessionUsable } from '../auth'
 import { type AuthenticationMethod, type PrincipalRow, principalStatus, type SessionRow } from '../db'
 import { type RequestContext } from '../env'
+import { normalizeOrigin, resolveReturnUrl } from '../handoff'
 import { logError } from '../log'
 import { randomToken } from '../oidc'
 import { resolvePermissionsAt } from '../resolve'
 import { hashToken } from '../secret'
 import { type Services } from '../services'
 import { clearCookie, readCookie, serializeCookie } from './cookies'
+import type { AuthFailure } from './failure'
 import { type Handoff, handoffLocation } from './handoff'
 
 import { authFailurePage } from '../password-pages'
-import { redirectHeaders, safeRedirect, sameOrigin } from './http'
+import { printable, redirectHeaders, safeRedirect, sameOrigin } from './http'
 
 import { endingFlightCookies } from './oidc-flight'
 
@@ -177,16 +179,45 @@ export async function administersIam(services: Services, principalId: string): P
  * and leaves the session as it was.
  */
 export async function handleLogout(request: Request, services: Services, requestId: string): Promise<Response> {
-	// Logout names no application, like its confirmation page: these answers speak the installation's language.
-	if (!sameOrigin(request, services.config)) return authFailurePage(await installationPresentation(services), { kind: 'cross_origin' }, 403)
+	const destination = await logoutDestination(new URL(request.url), services)
+	if (destination.kind === 'refused') return destination.response
+	const presentation = destination.kind === 'app' ? destination.presentation : await installationPresentation(services)
+	if (!sameOrigin(request, services.config)) return authFailurePage(presentation, { kind: 'cross_origin' }, 403)
 	if (!await endLogin(request, services, requestId)) {
-		return authFailurePage(await installationPresentation(services), { kind: 'logout_unavailable' }, 503)
+		return authFailurePage(presentation, { kind: 'logout_unavailable' }, 503)
 	}
 	// The provider's logout wins over any return address: without it the provider signs the person in again at once.
 	const providerLogout = services.oidc?.logoutUrl() ?? null
 	if (providerLogout !== null) return signedOutRedirect(providerLogout)
-	const url = new URL(request.url)
-	return signedOutRedirect(safeRedirect(url.searchParams.get('redirect'), services.config) ?? await installationLanding(services))
+	return signedOutRedirect(destination.redirect ?? await installationLanding(services))
+}
+
+/**
+ * Where a sign-out returns. With `?app=`, the `redirect` must lie in that application's registered return origins, the
+ * registry the handoff reads (joat fork, `docs/specs/joat-sign-out-to-app.md`); an unregistered one is refused before
+ * anything ends. Without it, an address on IAM's own origin, or null for the installation's landing.
+ */
+export async function logoutDestination(
+	url: URL,
+	services: Services,
+): Promise<
+	| { readonly kind: 'app'; readonly app: string; readonly redirect: string; readonly presentation: AppPresentation }
+	| { readonly kind: 'installation'; readonly redirect: string | null }
+	| { readonly kind: 'refused'; readonly response: Response }
+> {
+	const app = url.searchParams.get('app')
+	const raw = url.searchParams.get('redirect')
+	if (app === null || app === '') return { kind: 'installation', redirect: safeRedirect(raw, services.config) }
+	const presentation = await presentationFor(services, app)
+	const returnUrl = raw === null || raw === '' ? null : await resolveReturnUrl(services, app, raw)
+	if (returnUrl === null) {
+		const origin = raw === null ? null : normalizeOrigin(raw)
+		const failure: AuthFailure = origin === null
+			? { kind: 'no_return_address' }
+			: { kind: 'unregistered_origin', origin: printable(origin) }
+		return { kind: 'refused', response: await authFailurePage(presentation, failure, 400) }
+	}
+	return { kind: 'app', app, redirect: returnUrl, presentation }
 }
 
 /**

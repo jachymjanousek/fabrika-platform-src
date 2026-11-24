@@ -487,6 +487,46 @@ describe('a flow that names no destination', () => {
 		expect((await signOut(services, `${ISSUER}/auth/login`)).headers.get('Location')).toBe(`${ISSUER}/auth/login`)
 	})
 
+	test("with ?app=, a sign-out returns to that application's registered address, and refuses any other (joat fork)", async () => {
+		const { h, hasher, services } = passwordServices()
+		await registerConsole(h, services)
+		await h.repositories.handoff.setReturnOrigins('termin', ['https://termin.example.test'])
+		await seedPasswordUser(h, hasher)
+		const query = (redirect: string) => `?app=termin&redirect=${encodeURIComponent(redirect)}`
+
+		const page = await handleAuth(new Request(`${ISSUER}/auth/logout${query('https://termin.example.test/')}`), services, AUTH_ENV, new TestContext())
+		expect(page.status).toBe(200)
+		expect(formAction(page)).toBe(`'self' https://termin.example.test`)
+		expect(await page.text()).toContain(`action="/auth/logout?app=termin&amp;redirect=https%3A%2F%2Ftermin.example.test%2F"`)
+
+		const login = await signIn(services)
+		const cookie = cookieValue(login, SESSION_COOKIE) ?? ''
+		const out = await handleAuth(
+			post(`/auth/logout${query('https://termin.example.test/')}`, {}, { Cookie: `${SESSION_COOKIE}=${cookie}` }),
+			services,
+			AUTH_ENV,
+			new TestContext(),
+		)
+		expect(out.status).toBe(302)
+		expect(out.headers.get('Location')).toBe('https://termin.example.test/')
+		expect(await h.repositories.sessions.getActiveSessionByHash(await hashToken(cookie))).toBeNull()
+
+		// An address the application did not register is refused before anything ends, on the page and on the form.
+		for (const redirect of ['https://evil.example/', `${ISSUER}/auth/login`]) {
+			expect((await handleAuth(new Request(`${ISSUER}/auth/logout${query(redirect)}`), services, AUTH_ENV, new TestContext())).status).toBe(400)
+		}
+		const again = await signIn(services)
+		const kept = cookieValue(again, SESSION_COOKIE) ?? ''
+		const refused = await handleAuth(
+			post(`/auth/logout${query('https://evil.example/')}`, {}, { Cookie: `${SESSION_COOKIE}=${kept}` }),
+			services,
+			AUTH_ENV,
+			new TestContext(),
+		)
+		expect(refused.status).toBe(400)
+		expect(await h.repositories.sessions.getActiveSessionByHash(await hashToken(kept))).not.toBeNull()
+	})
+
 	test("a sign-out lands on IAM's sign-in page without a registered console", async () => {
 		const { services } = passwordServices()
 		const page = await handleAuth(new Request(`${ISSUER}/auth/logout`), services, AUTH_ENV, new TestContext())

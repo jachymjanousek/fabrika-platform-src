@@ -4,6 +4,7 @@
  */
 import { installationConsole } from '../app-presentation'
 import type { RequestContext } from '../env'
+import { normalizeOrigin } from '../handoff'
 import { TERMINAL_COMPLETE_PATH } from '../identification'
 import { installationBrand } from '../installation-brand'
 import { INVITATION_ACCEPT_PATH } from '../membership'
@@ -12,13 +13,13 @@ import { generateRequestId } from '../request-id'
 import type { Services } from '../services'
 import { getSigner } from '../signing'
 import { handleEmailCodeRequest, handleEmailCodeVerify } from './email-code'
-import { methodNotAllowed, safeRedirect } from './http'
+import { methodNotAllowed } from './http'
 import { handleInvitation } from './invitations'
 import { handleAccountChoice, handleLogin } from './login'
 import { handleCallback, handleOidcStart } from './oidc'
 import type { AuthEnv } from './oidc-flight'
 import { handleForgotPassword, handlePasswordAction, handlePasswordLogin } from './password'
-import { handleLogout } from './sessions'
+import { handleLogout, logoutDestination } from './sessions'
 import { handleTerminalCompletion, handleTerminalEnrolment, handleTerminalRelease, TERMINAL_RELEASE_PATH } from './terminals'
 
 /**
@@ -91,10 +92,19 @@ export async function handleAuth(
 		// `location = '…/auth/logout'` used to revoke the login and every app session under it.
 		if (request.method === 'POST') return handleLogout(request, services, requestId)
 		if (request.method === 'GET') {
-			const redirect = safeRedirect(url.searchParams.get('redirect'), services.config)
+			const destination = await logoutDestination(url, services)
+			if (destination.kind === 'refused') return destination.response
+			if (destination.kind === 'app') {
+				return logoutPage({
+					redirect: destination.redirect,
+					landingOrigin: normalizeOrigin(destination.redirect),
+					brand: destination.presentation.brand,
+					app: { id: destination.app, locale: destination.presentation.locale },
+				})
+			}
 			return logoutPage({
-				redirect,
-				landingOrigin: redirect === null ? await installationConsole(services) : null,
+				redirect: destination.redirect,
+				landingOrigin: destination.redirect === null ? await installationConsole(services) : null,
 				brand: await installationBrand(services),
 			})
 		}

@@ -257,17 +257,23 @@ export function setPasswordPage(input: {
  * because `htmlPage` (and its CSP) is what every browser-facing IAM page is built from.
  */
 export function logoutPage(input: {
-	/** An address on IAM's own origin; null signs out to the installation's landing. */
+	/** An address on IAM's own origin, or one of `app`'s registered return addresses; null signs out to the landing. */
 	readonly redirect: string | null
-	/** The console's origin when the sign-out lands there, which `form-action` therefore admits. */
+	/** The origin the sign-out lands on off IAM (the console's or the application's), which `form-action` admits. */
 	readonly landingOrigin: string | null
 	/** The installation's logo (`installationBrand`), or null for the fabrika mark. */
 	readonly brand: InstallationBrand | null
+	/** The application a sign-out returns to (joat fork); its language words the page. */
+	readonly app?: { readonly id: string; readonly locale: Locale }
 }): Response {
-	const text = catalogFor(DEFAULT_LOCALE).pages
-	const query = input.redirect === null ? '' : `?redirect=${encodeURIComponent(input.redirect)}`
+	const locale = input.app?.locale ?? DEFAULT_LOCALE
+	const text = catalogFor(locale).pages
+	const params = new URLSearchParams()
+	if (input.app !== undefined) params.set('app', input.app.id)
+	if (input.redirect !== null) params.set('redirect', input.redirect)
+	const query = params.size === 0 ? '' : `?${params.toString()}`
 	return htmlPage({
-		locale: DEFAULT_LOCALE,
+		locale,
 		brand: input.brand,
 		title: text.logout.title,
 		content: `<h1>${escapeHtml(text.logout.title)}</h1><p>${escapeHtml(text.logout.text)}</p>
