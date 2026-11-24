@@ -49,6 +49,26 @@ describe('the sign-out path', () => {
 		expect(new URL(cookieless.headers.get('location') ?? '').pathname).toBe('/auth/login')
 	})
 
+	test('with everywhere=1, clears the session and sends the browser to IAM sign-out, which returns here', async () => {
+		const cache = new MemoryTokenCache()
+		cache.set(cacheKey(APP, 'session', SESSION), { token: 't', expiresAt: Math.floor(Date.now() / 1000) + 300 })
+		const verify = createVerifyService({ manifest: manifestWith(HUMAN), iam: new FakeIam(), issuer: ISSUER, cache })
+		const response = await verify(
+			verifyRequest({
+				path: `${AUTH_SIGNOUT_PATH}?redirect=%2F&everywhere=1`,
+				cookie: `${SESSION_COOKIE}=${SESSION}`,
+				headers: { 'Sec-Fetch-Site': 'same-origin' },
+			}),
+		)
+		expect(response.status).toBe(302)
+		const location = new URL(response.headers.get('location') ?? '')
+		expect(`${location.origin}${location.pathname}`).toBe(`${ISSUER}/auth/logout`)
+		expect(location.searchParams.get('app')).toBe(APP)
+		expect(location.searchParams.get('redirect')).toBe(`https://${HOST}/`)
+		expect(sessionCookie(response)).toContain('Max-Age=0')
+		expect(cache.get(cacheKey(APP, 'session', SESSION))).toBeUndefined()
+	})
+
 	test('refuses a request that is not same-origin, absent fetch metadata included', async () => {
 		const variants: Record<string, string>[] = [{ 'Sec-Fetch-Site': 'cross-site' }, { 'Sec-Fetch-Site': 'same-site' }, { 'Sec-Fetch-Site': 'none' }, {}]
 		for (const headers of variants) {

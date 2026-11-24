@@ -1,4 +1,5 @@
 import type { InstallationBrand } from './brand'
+import { AUTH_SIGNOUT_PATH, LOGIN_REDIRECT_PARAM, SIGNOUT_EVERYWHERE_PARAM } from './constants'
 import { PAGE_STYLE, pageBody } from './page-style'
 
 /**
@@ -91,6 +92,18 @@ const STATUS_PAGES: Record<ErrorPageStatus, PageContent> = {
 		detail: 'It did not answer in time. Try again in a moment.',
 		action: TRY_AGAIN,
 	},
+}
+
+/**
+ * The 403 of a signed-in person whose account has no access (joat fork, `docs/specs/joat-sign-out-to-app.md`). Its
+ * button signs out everywhere and returns to the start page, which then asks for a sign-in: "Go to the start page"
+ * would loop when the start page is the one refused.
+ */
+export const SIGNED_IN_FORBIDDEN_PAGE: PageContent = {
+	title: 'You cannot open this page',
+	detail:
+		'You are signed in with an account that has no access to this page. Sign in with another account, or ask whoever runs this application for access.',
+	action: { href: `${AUTH_SIGNOUT_PATH}?${LOGIN_REDIRECT_PARAM}=%2F&${SIGNOUT_EVERYWHERE_PARAM}=1`, label: 'Sign in with another account' },
 }
 
 export interface ErrorPageOptions {

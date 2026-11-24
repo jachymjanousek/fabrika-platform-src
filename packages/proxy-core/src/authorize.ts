@@ -36,7 +36,7 @@ import {
 	type TokenCaller,
 } from '@fabrika/auth-core'
 import { cacheKey, type TokenCache } from './cache'
-import { LOGIN_REDIRECT_PARAM, SIGNOUT_RELEASE_PATH } from './constants'
+import { IAM_LOGOUT_PATH, LOGIN_REDIRECT_PARAM, SIGNOUT_EVERYWHERE_PARAM, SIGNOUT_RELEASE_PATH } from './constants'
 import { carriesPlatformKey, readBearer, readCookie } from './credentials'
 import { createHandoffAttempt, type HandoffAttempt, handoffCookieName, setHandoffParams, unmatchedVerifier } from './handoff'
 import { type DelegationIssuer, type IamGateway, IamUnavailableError } from './iam'
@@ -129,6 +129,8 @@ export type Decision =
 		challenge?: OAuthBearerChallenge
 		/** Set when the request's origin is admitted, so the page can read why it was refused. */
 		crossOrigin?: string
+		/** A session caller lacked the permission: its page offers to sign in with another account. */
+		signedIn?: true
 	}
 	/**
 	 * A contract application's preflight that the selected endpoint admits (ADR-0022 "Cross-origin endpoints"). The
@@ -340,7 +342,8 @@ export class Authorizer {
 			return withBearerChallenge({ outcome: 'deny', status: 403, reason: 'caller_kind' }, oauth)
 		}
 		if (!satisfies(row.requirement, caller.claims.perms)) {
-			return { outcome: 'deny', status: 403, reason: 'insufficient_permission' }
+			// A signed-in person whose account has no access: the page offers another account (joat fork).
+			return { outcome: 'deny', status: 403, reason: 'insufficient_permission', ...(caller.session ? { signedIn: true } : {}) }
 		}
 		if (caller.session && request.method !== 'GET' && request.headers.get(FETCH_SITE_HEADER) !== 'same-origin') {
 			return { outcome: 'deny', status: 403, reason: 'cross_site' }
@@ -633,7 +636,9 @@ export class Authorizer {
 		if (session !== null) {
 			this.cache?.delete(cacheKey(app.id, 'session', session))
 		}
-		const release = new URL(SIGNOUT_RELEASE_PATH, this.options.issuer.replace(/\/+$/, ''))
+		const everywhere = request.url.searchParams.get(SIGNOUT_EVERYWHERE_PARAM) === '1'
+		// Ending the IAM login goes through its confirmation form: a GET here must not end it (logout CSRF).
+		const release = new URL(everywhere ? IAM_LOGOUT_PATH : SIGNOUT_RELEASE_PATH, this.options.issuer.replace(/\/+$/, ''))
 		release.searchParams.set('app', audienceOf(app))
 		release.searchParams.set(LOGIN_REDIRECT_PARAM, target)
 		return { outcome: 'signout', status: 302, location: release.toString() }

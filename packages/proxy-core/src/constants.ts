@@ -48,6 +48,13 @@ export const APP_QUERY_PARAM = 'app'
  * credential that was just stripped from the logged URI.
  */
 export const LOGIN_REDIRECT_PARAM = 'redirect'
+/**
+ * `?everywhere=1` on the sign-out ends the IAM login too, at IAM's sign-out, which returns to the application (joat fork,
+ * `docs/specs/joat-sign-out-to-app.md`). Without it the sign-out ends this application's session only.
+ */
+export const SIGNOUT_EVERYWHERE_PARAM = 'everywhere'
+/** IAM's sign-out: a confirmation `GET`, a same-origin `POST` that ends the login. */
+export const IAM_LOGOUT_PATH = '/auth/logout'
 
 /**
  * Reserved on every app host beside the handoff callback, and answered before endpoint selection: it clears the app

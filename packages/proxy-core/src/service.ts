@@ -68,7 +68,7 @@ import type { DelegationIssuer, IamGateway } from './iam'
 import { type LogFields, type ProxyLogger, redactPath, silentLogger } from './log'
 import { formatOAuthBearerChallenge, isApplicationEntry, type ManifestEndpointRow, type ProxyApp, type ProxyManifest } from './manifest'
 import { findOAuthMetadata, OAUTH_METADATA_VERIFY_PATH, oauthMetadataResponse } from './oauth'
-import { errorAnswer, isPageNavigation, type PageContent, pageResponse, renderPage } from './pages'
+import { errorAnswer, isPageNavigation, type PageContent, pageResponse, renderPage, SIGNED_IN_FORBIDDEN_PAGE } from './pages'
 
 export interface VerifyServiceConfig {
 	manifest: ProxyManifest
@@ -329,7 +329,11 @@ function denied(
 			: loginRequired(decision.location, decision.handoff)
 	}
 	logger.warn('deny', { ...fields, reason, status: decision.status })
-	const response = isCallback ? callbackFailure(decision.status, brand) : errorAnswer(decision.status, DENY_TEXT[decision.status], asPage, brand)
+	const response = isCallback
+		? callbackFailure(decision.status, brand)
+		: decision.signedIn === true && asPage
+		? pageResponse(403, renderPage(SIGNED_IN_FORBIDDEN_PAGE, '403', brand))
+		: errorAnswer(decision.status, DENY_TEXT[decision.status], asPage, brand)
 	if (decision.clearHandoffState !== undefined) {
 		response.headers.append('set-cookie', clearHandoffCookie(decision.clearHandoffState))
 	}
