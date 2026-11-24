@@ -45,7 +45,12 @@ address form first, and the password form is one link away (`?method=password`) 
 - Sends are throttled per mailbox (5 in 15 minutes), per client (30) and deployment-wide (500).
 - The session's method is `email_code`; it is usable while the method is on.
 
-With OIDC off, sign-out ends every session there is: the next sign-in asks for a new code. The design and its
+With OIDC off, sign-out ends every session there is: the next sign-in asks for a new code.
+
+An application signs a person out with `/__fabrika/auth/signout?redirect=/&everywhere=1` (joat fork): the proxy ends
+its session and cached token, then IAM's `/auth/logout?app=<id>&redirect=<url>` ends the login after its confirmation
+and returns to the application's registered address. A signed-in person whose account has no access reads a 403 page
+with that sign-out as "Sign in with another account" ([`specs/joat-sign-out-to-app.md`](../specs/joat-sign-out-to-app.md)). The design and its
 limits are in [`specs/joat-email-code-sign-in.md`](../specs/joat-email-code-sign-in.md).
 
 ## Per-user state
